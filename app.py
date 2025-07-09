@@ -1,16 +1,24 @@
 import streamlit as st
-import re
+import json
 import os
+
+if not os.path.exists("credentials.json"):
+    # Only runs on Streamlit Cloud (or if you set up secrets.toml locally)
+    creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
+    with open("credentials.json", "w") as f:
+        json.dump(creds_dict, f)
+
+import re
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 import time
 import random
-from plyer import notification
 
 # If modifying these SCOPES, delete the file token.json
 SCOPES = ['https://www.googleapis.com/auth/documents']
+
 
 def extract_doc_id(link):
     match = re.search(r"/d/([a-zA-Z0-9-_]+)", link)
@@ -119,6 +127,8 @@ if 'current_index' not in st.session_state:
 
 st.title("Google Docs Copier Bot")
 
+st.write("Secrets keys available:", list(st.secrets.keys()))
+
 st.write("Paste the links to your Google Docs below:")
 
 source_link = st.text_input("Source Google Doc Link (Read from)")
@@ -137,7 +147,7 @@ if source_id:
         words_preview = source_text.split()
         total_words_preview = len(words_preview)
     except Exception as e:
-        pass
+        st.error(f"Error loading source doc: {e}")
 
 if total_words_preview > 0:
     typo_rate = 0.05  # 1 in 20 words
