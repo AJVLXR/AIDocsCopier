@@ -32,21 +32,33 @@ def is_headless():
     return not sys.stdin.isatty()
 
 def authenticate():
-    redirect_uri = 'https://aidocscopier.streamlit.app/'  # Must match Google Console exactly
-
+    redirect_uri = 'https://aidocscopier.streamlit.app/'
     flow = Flow.from_client_secrets_file(
         'credentials.json',
         scopes=SCOPES,
         redirect_uri=redirect_uri
     )
-
+    # Always generate a fresh URL
     auth_url, _ = flow.authorization_url(
         prompt='consent',
         access_type='offline',
         include_granted_scopes='true'
     )
-
     st.markdown(f"👉 [Click here to authorize access]({auth_url})")
+
+    # Get code from URL or input
+    query_params = st.experimental_get_query_params()
+    code_from_url = query_params.get("code", [None])[0]
+
+    # Track last used code in session state
+    if 'last_used_code' not in st.session_state:
+        st.session_state['last_used_code'] = None
+
+    if code_from_url:
+        if code_from_url == st.session_state['last_used_code']:
+            st.warning("This code has already been used. Please click the authorization link again to get a new code.")
+        else:
+            st.markdown(f"<div style='display: flex; align-items: center;'><span style='font-size:2em; color:#4CAF50;'>&#8594;</span> <span style='background:#222;padding:0.5em 1em;border-radius:5px;margin-left:0.5em;font-size:1.1em;color:#fff;'>Copy and paste this code: <b>{code_from_url}</b></span></div>", unsafe_allow_html=True)
     code = st.text_input("Paste the authorization code here:")
 
     if code:
@@ -54,9 +66,16 @@ def authenticate():
             flow.fetch_token(code=code)
             creds = flow.credentials
             st.success("Authentication successful!")
+            st.session_state['last_used_code'] = code
+            # Clear code from URL after use
+            st.experimental_set_query_params()
             return creds
         except Exception as e:
             st.error(f"Error fetching token: {e}")
+            st.info("Please click the authorization link again to get a new code.")
+            st.session_state['last_used_code'] = code
+            # Clear code from URL after use
+            st.experimental_set_query_params()
             return None
     return None
 
@@ -148,6 +167,22 @@ if 'current_index' not in st.session_state:
     st.session_state['current_index'] = 0
 
 st.title("Google Docs Copier Bot")
+
+st.markdown("""
+## 🔑 How to Connect Your Google Account
+
+1. **Click the green button below** to authorize access to your Google Docs.
+2. **Log in to your Google account** and grant permission.
+3. **After login, you will be redirected back to this app.**
+4. **Look at your browser's address bar** — you will see a URL like:
+   
+   `https://aidocscopier.streamlit.app/?state=...&code=YOUR_CODE_HERE&scope=...`
+
+5. **Copy the code after `code=`** (up to the next `&` or the end of the URL).
+6. **Paste that code into the box below** to complete authentication.
+
+:arrow_right: _If you see a green arrow and a code below, just copy and paste that code!_
+""")
 
 # Remove this line, as we are not using Streamlit secrets locally
 # st.write("Secrets keys available:", list(st.secrets.keys()))
