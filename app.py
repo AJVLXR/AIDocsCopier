@@ -30,6 +30,10 @@ def extract_doc_id(link):
     match = re.search(r"/d/([a-zA-Z0-9-_]+)", link)
     return match.group(1) if match else None
 
+def is_headless():
+    import sys
+    return not sys.stdin.isatty()
+
 def authenticate():
     creds = None
     if os.path.exists('token.json'):
@@ -39,11 +43,9 @@ def authenticate():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            if os.environ.get("STREAMLIT_SERVER_HEADLESS", "") == "1":
-                # On Streamlit Cloud, use run_console (no browser available)
+            if is_headless():
                 creds = flow.run_console()
             else:
-                # Local, use run_local_server
                 creds = flow.run_local_server(port=0)
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
