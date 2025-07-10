@@ -6,11 +6,8 @@ if "GOOGLE_CREDENTIALS" in st.secrets:
     creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
     with open("credentials.json", "w") as f:
         json.dump(creds_dict, f)
-elif os.path.exists("credentials.json"):
-    with open("credentials.json", "r") as f:
-        creds_dict = json.load(f)
 else:
-    st.error("No Google credentials found! Please add credentials.json to the project root or set GOOGLE_CREDENTIALS in Streamlit secrets.")
+    st.error("No Google credentials found! Please set GOOGLE_CREDENTIALS in Streamlit secrets.")
     st.stop()
 
 import re
@@ -43,17 +40,12 @@ def authenticate():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            try:
-                # Try to use the local server (works locally)
-                creds = flow.run_local_server(port=0)
-            except Exception as e:
-                # Fallback: manual code entry for headless environments
-                auth_url, _ = flow.authorization_url(prompt='consent')
-                st.info(f"Please [authorize here]({auth_url}) and paste the code below.")
-                code = st.text_input("Enter the authorization code:")
-                if code:
-                    flow.fetch_token(code=code)
-                    creds = flow.credentials
+            auth_url, _ = flow.authorization_url(prompt='consent')
+            st.info(f"Please [authorize here]({auth_url}) and paste the code below.")
+            code = st.text_input("Enter the authorization code:")
+            if code:
+                flow.fetch_token(code=code)
+                creds = flow.credentials
     if creds:
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
