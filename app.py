@@ -1,12 +1,17 @@
-import streamlit as st
-import json
 import os
+import json
+import streamlit as st
 
-if not os.path.exists("credentials.json"):
-    # Only runs on Streamlit Cloud (or if you set up secrets.toml locally)
+if "GOOGLE_CREDENTIALS" in st.secrets:
     creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
     with open("credentials.json", "w") as f:
         json.dump(creds_dict, f)
+elif os.path.exists("credentials.json"):
+    with open("credentials.json", "r") as f:
+        creds_dict = json.load(f)
+else:
+    st.error("No Google credentials found! Please add credentials.json to the project root or set GOOGLE_CREDENTIALS in Streamlit secrets.")
+    st.stop()
 
 import re
 from google.oauth2.credentials import Credentials
@@ -15,6 +20,7 @@ from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 import time
 import random
+from plyer import notification
 
 # If modifying these SCOPES, delete the file token.json
 SCOPES = ['https://www.googleapis.com/auth/documents']
@@ -127,7 +133,8 @@ if 'current_index' not in st.session_state:
 
 st.title("Google Docs Copier Bot")
 
-st.write("Secrets keys available:", list(st.secrets.keys()))
+# Remove this line, as we are not using Streamlit secrets locally
+# st.write("Secrets keys available:", list(st.secrets.keys()))
 
 st.write("Paste the links to your Google Docs below:")
 
@@ -306,11 +313,15 @@ if st.session_state['typing'] and not st.session_state['stopped'] and st.session
             word_index = 0
         if not st.session_state['stopped']:
             st.success("Done typing into target document!")
-            notification.notify(
-                title='Google Docs Copier Bot',
-                message='Typing has been completed!',
-                timeout=5
-            )
+            try:
+                if hasattr(notification, "notify") and callable(notification.notify):
+                    notification.notify(
+                        title='Google Docs Copier Bot',
+                        message='Typing has been completed!',
+                        timeout=5
+                    )
+            except Exception as notify_err:
+                st.info(f"Notification could not be shown: {notify_err}")
         st.session_state['typing'] = False
         st.session_state['current_index'] = 0
         st.session_state['words'] = []
