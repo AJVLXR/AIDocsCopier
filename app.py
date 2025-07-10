@@ -39,7 +39,12 @@ def authenticate():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
+            if os.environ.get("STREAMLIT_SERVER_HEADLESS", "") == "1":
+                # On Streamlit Cloud, use run_console (no browser available)
+                creds = flow.run_console()
+            else:
+                # Local, use run_local_server
+                creds = flow.run_local_server(port=0)
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
     return creds
