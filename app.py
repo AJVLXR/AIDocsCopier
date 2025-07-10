@@ -43,10 +43,18 @@ def authenticate():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            if is_headless():
-                creds = flow.run_console()
-            else:
+            try:
+                # Try to use the local server (works locally)
                 creds = flow.run_local_server(port=0)
+            except Exception as e:
+                # Fallback: manual code entry for headless environments
+                auth_url, _ = flow.authorization_url(prompt='consent')
+                st.info(f"Please [authorize here]({auth_url}) and paste the code below.")
+                code = st.text_input("Enter the authorization code:")
+                if code:
+                    flow.fetch_token(code=code)
+                    creds = flow.credentials
+    if creds:
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
     return creds
