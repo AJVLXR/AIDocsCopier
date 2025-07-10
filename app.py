@@ -12,7 +12,7 @@ else:
 
 import re
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 import time
@@ -32,24 +32,33 @@ def is_headless():
     return not sys.stdin.isatty()
 
 def authenticate():
-    creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            auth_url, _ = flow.authorization_url(prompt='consent')
-            st.info(f"Please [authorize here]({auth_url}) and paste the code below.")
-            code = st.text_input("Enter the authorization code:")
-            if code:
-                flow.fetch_token(code=code)
-                creds = flow.credentials
-    if creds:
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
-    return creds
+    redirect_uri = 'https://aidocscopier.streamlit.app/'  # Must match Google Console exactly
+
+    flow = Flow.from_client_secrets_file(
+        'credentials.json',
+        scopes=SCOPES,
+        redirect_uri=redirect_uri
+    )
+
+    auth_url, _ = flow.authorization_url(
+        prompt='consent',
+        access_type='offline',
+        include_granted_scopes='true'
+    )
+
+    st.markdown(f"👉 [Click here to authorize access]({auth_url})")
+    code = st.text_input("Paste the authorization code here:")
+
+    if code:
+        try:
+            flow.fetch_token(code=code)
+            creds = flow.credentials
+            st.success("Authentication successful!")
+            return creds
+        except Exception as e:
+            st.error(f"Error fetching token: {e}")
+            return None
+    return None
 
 def read_doc_content(service, doc_id):
     doc = service.documents().get(documentId=doc_id).execute()
