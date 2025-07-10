@@ -38,7 +38,6 @@ def authenticate():
         scopes=SCOPES,
         redirect_uri=redirect_uri
     )
-    # Always generate a fresh URL
     auth_url, _ = flow.authorization_url(
         prompt='consent',
         access_type='offline',
@@ -46,9 +45,9 @@ def authenticate():
     )
     st.markdown(f"👉 [Click here to authorize access]({auth_url})")
 
-    # Get code from URL or input
-    query_params = st.experimental_get_query_params()
-    code_from_url = query_params.get("code", [None])[0]
+    # Get code from URL or input using new st.query_params API
+    params = st.query_params
+    code_from_url = params.get("code", None)
 
     # Track last used code in session state
     if 'last_used_code' not in st.session_state:
@@ -68,14 +67,13 @@ def authenticate():
             st.success("Authentication successful!")
             st.session_state['last_used_code'] = code
             # Clear code from URL after use
-            st.experimental_set_query_params()
+            st.query_params.pop("code", None)
             return creds
         except Exception as e:
             st.error(f"Error fetching token: {e}")
             st.info("Please click the authorization link again to get a new code.")
             st.session_state['last_used_code'] = code
-            # Clear code from URL after use
-            st.experimental_set_query_params()
+            st.query_params.pop("code", None)
             return None
     return None
 
